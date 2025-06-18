@@ -17,13 +17,21 @@ def describe_network_interfaces(sg_id):
         print(f"Error describing interfaces for {sg_id}: {e}")
         return None
 
-def get_resource_info(interface):
+def get_resource_info(interface, sg_id):
     description = interface.get("Description", "")
     attachment = interface.get("Attachment", {})
     instance_id = attachment.get("InstanceId", "")
     eni_id = interface.get("NetworkInterfaceId", "")
     private_ip = interface.get("PrivateIpAddress", "")
     status = interface.get("Status", "unknown")
+    vpc_id = interface.get("VpcId", "Unknown")
+    name = ""
+    
+    # ネットワークインターフェースのNameタグを探す
+    for tag in interface.get("TagSet", []):
+        if tag.get("Key") == "Name":
+            name = tag.get("Value")
+            break
     
     resource_type = "Unknown"
     resource_id = eni_id  # default fallback
@@ -44,7 +52,14 @@ def get_resource_info(interface):
     elif "Transit Gateway" in description:
         resource_type = "Transit Gateway"
 
-    return private_ip, eni_id, status, resource_type, resource_id
+    # セキュリティグループ名を取得
+    sg_name = ""
+    for group in interface.get("Groups", []):
+        if group.get("GroupId") == sg_id:
+            sg_name = group.get("GroupName", "")
+            break
+
+    return private_ip, eni_id, status, resource_type, resource_id, vpc_id, name, sg_name
 
 def main():
     parser = argparse.ArgumentParser(description="Check SG usage and output details to CSV")
@@ -56,7 +71,10 @@ def main():
         reader = csv.reader(infile)
         next(reader)  # ヘッダー読み飛ばし
         writer = csv.writer(outfile)
-        writer.writerow(["sg_id", "private_ip", "eni_id", "status", "resource_type", "resource_id"])
+        writer.writerow([
+            "sg_id", "sg_name", "private_ip", "eni_id", "status", 
+            "resource_type", "resource_id", "vpc_id", "name"
+        ])
 
         for row in reader:
             if not row or not row[0].startswith("sg-"):
@@ -68,11 +86,14 @@ def main():
 
             interfaces = data["NetworkInterfaces"]
             if not interfaces:
-                writer.writerow([sg_id, "", "", "not-attached", "None", ""])
+                writer.writerow([sg_id, "", "", "", "not-attached", "None", "", "", ""])
             else:
                 for interface in interfaces:
-                    private_ip, eni_id, status, resource_type, resource_id = get_resource_info(interface)
-                    writer.writerow([sg_id, private_ip, eni_id, status, resource_type, resource_id])
+                    private_ip, eni_id, status, resource_type, resource_id, vpc_id, name, sg_name = get_resource_info(interface, sg_id)
+                    writer.writerow([
+                        sg_id, sg_name, private_ip, eni_id, status, 
+                        resource_type, resource_id, vpc_id, name
+                    ])
 
 if __name__ == "__main__":
     main()
