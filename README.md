@@ -2,9 +2,13 @@
 ## 概要  
 AWSのセキュリティグループ情報をCSVで出力するプログラムです。  
 
+## 事前準備  
+AWS Cloudshellにアクセスし、Pythonファイルをあらかじめhomeディレクトリに設置してください。  
+https://docs.aws.amazon.com/ja_jp/cloudshell/latest/userguide/welcome.html  
+  
 ## 使い方  
 ①AWS CloudShellで以下のコマンドを実行  
-aws ec2 describe-security-groups --output json > all_security_groups.json  
+~ $ aws ec2 describe-security-groups --output json > all_security_groups.json  
   
 ②「security_groups_list.py」にjsonを読みこませ、jsonからセキュリティグループ一覧をCSVに出力  
 ~ $ python security_groups_list.py all_security_groups.json security_groups_output.csv  
